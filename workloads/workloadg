@@ -1,0 +1,25 @@
+# Yahoo! Cloud System Benchmark
+# Workload G: Trace-driven workload (EuroSys submission)
+#   Application example: Timeseries application requesting batches of information
+#                        
+#   Read/update ratio: 100/0
+#   Request distribution: uniform
+
+
+workload=com.yahoo.ycsb.workloads.EuroSysWorkload
+host=localhost
+port=9042
+readallfields=true
+readproportion=1.0
+updateproportion=0
+scanproportion=0
+insertproportion=0
+requestdistribution=uniform
+fieldcount=1
+fieldlengthdistribution=fbmemcache
+worktype=trace
+tracefile=/Users/reda/git/cicero/trace-processing/third_simulatorTrace
+threads=10
+target=1850
+insertorder=incremental
+cassandra.readconsistencylevel=	ONE
