@@ -24,6 +24,7 @@ import com.yahoo.ycsb.generator.AcknowledgedCounterGenerator;
 import com.yahoo.ycsb.generator.CounterGenerator;
 import com.yahoo.ycsb.generator.DiscreteGenerator;
 import com.yahoo.ycsb.generator.ExponentialGenerator;
+import com.yahoo.ycsb.generator.FBMemcacheGenerator;
 import com.yahoo.ycsb.generator.Generator;
 import com.yahoo.ycsb.generator.ConstantIntegerGenerator;
 import com.yahoo.ycsb.generator.HotspotIntegerGenerator;
@@ -93,7 +94,7 @@ public class CoreWorkload extends Workload
 
 	int fieldcount;
 
-	private List<String> fieldnames;
+	protected List<String> fieldnames;
 
 	/**
 	 * The name of the property for the field length distribution. Options are "uniform", "zipfian" (favoring short records), "constant", and "histogram".
@@ -170,7 +171,7 @@ public class CoreWorkload extends Workload
    * Set to true if want to check correctness of reads. Must also
    * be set to true during loading phase to function.
    */
-  private boolean dataintegrity;
+  protected boolean dataintegrity;
 
   /**
    * Response values for data integrity checks.
@@ -321,6 +322,8 @@ public class CoreWorkload extends Workload
 			fieldlengthgenerator = new UniformIntegerGenerator(1, fieldlength);
 		} else if(fieldlengthdistribution.compareTo("zipfian") == 0) {
 			fieldlengthgenerator = new ZipfianGenerator(1, fieldlength);
+		} else if(fieldlengthdistribution.compareTo("fbmemcache") == 0) {
+	            fieldlengthgenerator = new FBMemcacheGenerator();
 		} else if(fieldlengthdistribution.compareTo("histogram") == 0) {
 			try {
 				fieldlengthgenerator = new HistogramGenerator(fieldlengthhistogram);
