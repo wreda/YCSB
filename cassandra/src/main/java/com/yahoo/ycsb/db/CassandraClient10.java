@@ -601,6 +601,12 @@ public class CassandraClient10 extends DB
     System.out.println("Result of delete: " + res);
   }
 
+    @Override
+    public int readMulti(String table, Set<String> keys, Set<String> fields,
+            Vector<HashMap<String, ByteIterator>> result) {
+        throw new UnsupportedOperationException();
+    }
+
   /*
    * public static void main(String[] args) throws TException,
    * InvalidRequestException, UnavailableException,

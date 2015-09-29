@@ -22,8 +22,8 @@ import com.datastax.driver.core.querybuilder.Insert;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
 import com.yahoo.ycsb.*;
-import java.nio.ByteBuffer;
 
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
@@ -233,6 +233,62 @@ public class CassandraCQLClient extends DB {
             return ERR;
         }
 
+    }
+    
+    @Override
+    public int readMulti(String table, Set<String> keys, Set<String> fields,
+            Vector<HashMap<String, ByteIterator>> result) {
+        try {
+            Statement stmt;
+            Select.Builder selectBuilder;
+
+            if (fields == null) {
+                selectBuilder = QueryBuilder.select().all();
+            }
+            else {
+                selectBuilder = QueryBuilder.select();
+                for (String col : fields) {
+                    ((Select.Selection) selectBuilder).column(col);
+                }
+            }
+
+            stmt = selectBuilder.from(table).where(QueryBuilder.in(YCSB_KEY, keys.toArray())).limit(keys.size());
+            stmt.setConsistencyLevel(readConsistencyLevel);
+
+            if (_debug) {
+                System.out.println(stmt.toString());
+            }
+
+            ResultSet rs = session.execute(stmt);
+
+            HashMap<String, ByteIterator> tuple;
+            while (!rs.isExhausted()) {
+                Row row = rs.one();
+                tuple = new HashMap<String, ByteIterator> ();
+
+                ColumnDefinitions cd = row.getColumnDefinitions();
+                
+                for (ColumnDefinitions.Definition def : cd) {
+                    ByteBuffer val = row.getBytesUnsafe(def.getName());
+                    if (val != null) {
+                        tuple.put(def.getName(),
+                            new ByteArrayByteIterator(val.array()));
+                    }
+                    else {
+                        tuple.put(def.getName(), null);
+                    }
+                }
+
+                result.add(tuple);
+            }
+
+            return OK;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Error reading the following keys: " + keys);
+            return ERR;
+        }
     }
 
     /**

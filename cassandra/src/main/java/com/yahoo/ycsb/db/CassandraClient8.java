@@ -569,6 +569,12 @@ public class CassandraClient8 extends DB
     res = cli.delete("usertable", "BrianFrankCooper");
     System.out.println("Result of delete: " + res);
   }
+  
+  @Override
+  public int readMulti(String table, Set<String> keys, Set<String> fields,
+          Vector<HashMap<String, ByteIterator>> result) {
+      throw new UnsupportedOperationException();
+  }
 
   /*
    * public static void main(String[] args) throws TException,
