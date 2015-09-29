@@ -82,7 +82,8 @@ public abstract class DB
 	}
 
 	/**
-	 * Read a record from the database. Each field/value pair from the result will be stored in a HashMap.
+	 * Reads multiple records from database. Each field/value pair from the result will be stored in a HashMap.
+	 * (this method will be only be implemented for Cassandra's CQL client for now)
 	 *
 	 * @param table The name of the table
 	 * @param key The record key of the record to read.
@@ -90,8 +91,18 @@ public abstract class DB
 	 * @param result A HashMap of field/value pairs for the result
 	 * @return Zero on success, a non-zero error code on error or "not found".
 	 */
-	public abstract int read(String table, String key, Set<String> fields, HashMap<String,ByteIterator> result);
+	public abstract int readMulti(String table, Set<String> keys, Set<String> fields, Vector<HashMap<String,ByteIterator>> result);
 
+	   /**
+     * Read a record from the database. Each field/value pair from the result will be stored in a HashMap.
+     *
+     * @param table The name of the table
+     * @param key The record key of the record to read.
+     * @param fields The list of fields to read, or null for all of them
+     * @param result A HashMap of field/value pairs for the result
+     * @return Zero on success, a non-zero error code on error or "not found".
+     */
+    public abstract int read(String table, String key, Set<String> fields, HashMap<String,ByteIterator> result);
 	/**
 	 * Perform a range scan for a set of records in the database. Each field/value pair from the result will be stored in a HashMap.
 	 *

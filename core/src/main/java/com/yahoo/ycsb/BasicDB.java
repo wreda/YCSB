@@ -247,6 +247,12 @@ public class BasicDB extends DB
 
 		return 0;
 	}
+	
+    @Override
+    public int readMulti(String table, Set<String> keys, Set<String> fields,
+            Vector<HashMap<String, ByteIterator>> result) {
+        throw new UnsupportedOperationException();
+    }
 
 	/**
 	 * Short test of BasicDB

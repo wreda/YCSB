@@ -55,6 +55,7 @@ public class CommandLine
       {
 	 System.out.println("Commands:");
 	 System.out.println("  read key [field1 field2 ...] - Read a record");
+     System.out.println("  readmulti keycount key1 [key2 ...] [field1 field2 ...] - Read multiple records (only supported for cql client)");
 	 System.out.println("  scan key recordcount [field1 field2 ...] - Scan starting at key");
 	 System.out.println("  insert key name1=value1 [name2=value2 ...] - Insert a new record");
 	 System.out.println("  update key name1=value1 [name2=value2 ...] - Update a record");
@@ -303,6 +304,58 @@ public class CommandLine
 		  }
 	       }		  
 	    }
+        else if (tokens[0].compareTo("readmulti")==0)
+        {
+           if (tokens.length<=2)
+           {
+               System.out.println("Error: syntax is \"readmulti keycount key1 [key2 ...] [field1 field2 ...]\"");
+           }
+           else if((Integer.parseInt(tokens[1]) > (tokens.length -2)) || Integer.parseInt(tokens[1])<=0)
+           {
+               System.out.println("Error: Either keycount is not greater than 0 or doesn't match inputted keys");
+           }
+           else 
+           {
+              Set<String> keys=new HashSet<String>();
+              for(int i=2; i<(2+Integer.parseInt(tokens[1])); i++)
+              {
+                  keys.add(tokens[i]);
+              }
+              System.out.println(keys);
+              Set<String> fields=null;
+              if (tokens.length>(2+Integer.parseInt(tokens[1])))
+              {
+                 fields=new HashSet<String>();
+                 
+                 for (int i=3+Integer.parseInt(tokens[1]); i<tokens.length; i++)
+                 {
+                     fields.add(tokens[i]);
+                 }
+              }
+              
+              Vector<HashMap<String,ByteIterator>> results=new Vector<HashMap<String,ByteIterator>>();
+              int ret=db.readMulti(table, keys, fields, results);
+              System.out.println("Return code: "+ret);
+              int record=0;
+              if (results.size()==0)
+              {
+                 System.out.println("0 records");
+              }
+              else
+              {
+                 System.out.println("--------------------------------");
+              }
+              for (HashMap<String,ByteIterator> result : results)
+              {
+                 System.out.println("Record "+(record++));
+                 for (Map.Entry<String,ByteIterator> ent : result.entrySet())
+                 {
+                System.out.println(ent.getKey()+"="+ent.getValue());
+                 }
+                 System.out.println("--------------------------------");
+              }
+           }          
+        }
 	    else if (tokens[0].compareTo("scan")==0)
 	    {
 	       if (tokens.length<3)
