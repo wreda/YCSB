@@ -161,10 +161,10 @@ public class EuroSysWorkload extends CoreWorkload {
                 List<String> task = readTransactionFromFile(filegen);
                 //System.out.println("Reading the following keys: "+task);
                 for (int i = 0; i < task.size(); i++) {
-                    //long keyInt = Utils.hash(Integer.parseInt(task.get(i)));
-                    //keyInt = keyInt%1000000;
+                    long keyInt = Utils.hash(Integer.parseInt(task.get(i)));
+                    keyInt = keyInt%1000000;
                     
-                    int keyInt = Integer.parseInt(task.get(i));
+                    //int keyInt = Integer.parseInt(task.get(i));
                     String kname = buildKeyName(keyInt);
                     task.set(i, kname);
                 }
