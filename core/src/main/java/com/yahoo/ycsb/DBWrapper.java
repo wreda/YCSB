@@ -129,6 +129,18 @@ public class DBWrapper extends DB
     return res;
   }
 
+  @Override
+  public Status readMulti(String table, Set<String> keys, Set<String> fields,
+                       Vector<HashMap<String, ByteIterator>> result) {
+    long ist=_measurements.getIntendedtartTimeNs();
+    long st = System.nanoTime();
+    Status res=_db.readMulti(table,keys,fields,result);
+    long en=System.nanoTime();
+    measure("READMULTI", res, ist, st, en);
+    _measurements.reportStatus("READMULTI",res);
+    return res;
+  }
+
   /**
    * Perform a range scan for a set of records in the database.
    * Each field/value pair from the result will be stored in a HashMap.
