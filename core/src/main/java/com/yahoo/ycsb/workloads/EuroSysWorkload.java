@@ -67,7 +67,6 @@ public class EuroSysWorkload extends CoreWorkload {
     public static String tracefile;
     
     FileGenerator filegen;
-    Map<Integer, Float> fb_distr_1_14;
     
     @Override
     public void init(Properties p) throws WorkloadException
@@ -162,7 +161,7 @@ public class EuroSysWorkload extends CoreWorkload {
                 //System.out.println("Reading the following keys: "+task);
                 for (int i = 0; i < task.size(); i++) {
                     long keyInt = Utils.hash(Integer.parseInt(task.get(i)));
-                    keyInt = keyInt%1000000;
+                    keyInt = keyInt%100000;
                     
                     //int keyInt = Integer.parseInt(task.get(i));
                     String kname = buildKeyName(keyInt);

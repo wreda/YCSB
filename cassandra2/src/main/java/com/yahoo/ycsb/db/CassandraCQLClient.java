@@ -187,6 +187,11 @@ public class CassandraCQLClient extends DB {
               discoveredHost.getRack());
         }
 
+        System.err.printf("Disabling paging by default");
+
+        //disable automatic paging
+        cluster.getConfiguration().getQueryOptions().setFetchSize(Integer.MAX_VALUE);
+
         session = cluster.connect(keyspace);
 
       } catch (Exception e) {
@@ -302,6 +307,8 @@ public class CassandraCQLClient extends DB {
 
       stmt = selectBuilder.from(table).where(QueryBuilder.in(YCSB_KEY, keys.toArray())).limit(keys.size());
       stmt.setConsistencyLevel(readConsistencyLevel);
+      stmt.setFetchSize(Integer.MAX_VALUE);
+      //stmt.enableTracing();
 
       if (debug) {
         System.out.println(stmt.toString());
