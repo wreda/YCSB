@@ -47,6 +47,7 @@ public class OneMeasurementHdrHistogram extends OneMeasurement {
 
   final Recorder histogram;
   Histogram totalHistogram;
+  int sloViolations;
 
   /**
    * The name of the property for deciding what percentile values to output.
@@ -58,11 +59,26 @@ public class OneMeasurementHdrHistogram extends OneMeasurement {
    */
   public static final String PERCENTILES_PROPERTY_DEFAULT = "95,99";
 
+
+  /**
+   * The name of the property for deciding what is the SLO latency bound.
+   */
+  public static final String SLO_PROPERTY = "hdrhistogram.slo";
+
+  /**
+   * The default value for the hdrhistogram.slo property.
+   */
+  public static final String SLO_PROPERTY_DEFAULT = "2500";
+
   List<Integer> percentiles;
+
+  Double slo;
 
   public OneMeasurementHdrHistogram(String name, Properties props) {
     super(name);
     percentiles = getPercentileValues(props.getProperty(PERCENTILES_PROPERTY, PERCENTILES_PROPERTY_DEFAULT));
+    slo = Double.parseDouble(props.getProperty(SLO_PROPERTY, SLO_PROPERTY_DEFAULT));
+    sloViolations = 0;
     boolean shouldLog = Boolean.parseBoolean(props.getProperty("hdrhistogram.fileoutput", "false"));
     if (!shouldLog) {
       log = null;
@@ -89,9 +105,10 @@ public class OneMeasurementHdrHistogram extends OneMeasurement {
     * It appears latency is reported in micros.
     * Using {@link Recorder} to support concurrent updates to histogram.
     *
-    * @see com.yahoo.ycsb.OneMeasurement#measure(int)
     */
   public void measure(int latencyInMicros) {
+    if(latencyInMicros>slo)
+      sloViolations++;
     histogram.recordValue(latencyInMicros);
   }
 
@@ -109,10 +126,12 @@ public class OneMeasurementHdrHistogram extends OneMeasurement {
       // we can close now
       log.close();
     }
+    double percSLOViolations = ((double)sloViolations)/totalHistogram.getTotalCount()*100.0;
     exporter.write(getName(), "Operations", totalHistogram.getTotalCount());
     exporter.write(getName(), "AverageLatency(us)", totalHistogram.getMean());
     exporter.write(getName(), "MinLatency(us)", totalHistogram.getMinValue());
     exporter.write(getName(), "MaxLatency(us)", totalHistogram.getMaxValue());
+    exporter.write(getName(), "SLO Violations(%)", percSLOViolations);
 
     for (Integer percentile: percentiles) {
       exporter.write(getName(), ordinal(percentile) + "PercentileLatency(us)", totalHistogram.getValueAtPercentile(percentile));
