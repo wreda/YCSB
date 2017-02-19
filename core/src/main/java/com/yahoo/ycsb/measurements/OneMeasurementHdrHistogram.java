@@ -17,11 +17,7 @@
 
 package com.yahoo.ycsb.measurements;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -136,8 +132,73 @@ public class OneMeasurementHdrHistogram extends OneMeasurement {
     for (Integer percentile: percentiles) {
       exporter.write(getName(), ordinal(percentile) + "PercentileLatency(us)", totalHistogram.getValueAtPercentile(percentile));
     }
-    
+
     exportStatusCounts(exporter);
+
+    //We only produce logs for READMULTI operations .. for now
+    //TODO make this configurable
+    if(getName() == "READMULTI") {
+      produceLogs();
+      //deleteTempFiles();
+    }
+  }
+
+  private void produceLogs()
+  {
+    File folder = new File("temp");
+    File[] listOfFiles = folder.listFiles();
+    File latencyFile = new File("latencies.csv");
+    latencyFile.delete();
+    mergeFiles(listOfFiles, latencyFile);
+    System.out.println("Detailed latency results have been saved to latency.csv");
+  }
+
+  private void deleteTempFiles()
+  {
+    System.out.println("Deleting temp log files..");
+    File dir = new File("temp");
+    System.out.println(dir.listFiles().length);
+    for(File file: dir.listFiles())
+      if (!file.isDirectory())
+        file.delete();
+  }
+
+  private static void mergeFiles(File[] files, File mergedFile) {
+
+    FileWriter fstream = null;
+    BufferedWriter out = null;
+    try {
+      fstream = new FileWriter(mergedFile, true);
+      out = new BufferedWriter(fstream);
+    } catch (IOException e1) {
+      e1.printStackTrace();
+    }
+
+    for (File f : files) {
+      System.out.println("merging: " + f.getName());
+      FileInputStream fis;
+      try {
+        fis = new FileInputStream(f);
+        BufferedReader in = new BufferedReader(new InputStreamReader(fis));
+
+        String aLine;
+        while ((aLine = in.readLine()) != null) {
+          out.write(aLine);
+          out.newLine();
+        }
+
+        in.close();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+
+    try {
+      out.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
   }
 
 	/**

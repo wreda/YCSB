@@ -17,12 +17,11 @@
 
 package com.yahoo.ycsb;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
-import java.util.Vector;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.util.*;
 
 import com.yahoo.ycsb.measurements.Measurements;
 
@@ -34,6 +33,7 @@ public class DBWrapper extends DB
 {
   private DB _db;
   private Measurements _measurements;
+  Writer latencyWriter;
 
   private boolean reportLatencyForEachError = false;
   private HashSet<String> latencyTrackedErrors = new HashSet<String>();
@@ -46,8 +46,7 @@ public class DBWrapper extends DB
   private static final String LATENCY_TRACKED_ERRORS_PROPERTY =
       "latencytrackederrors";
 
-  public DBWrapper(DB db)
-  {
+  public DBWrapper(DB db) {
     _db=db;
     _measurements=Measurements.getMeasurements();
   }
@@ -74,6 +73,21 @@ public class DBWrapper extends DB
    */
   public void init() throws DBException
   {
+    //create temp log file for each thread using this class
+    try {
+      File file = new File("temp/latencies"+Thread.currentThread());
+      final File parent_directory = file.getParentFile();
+
+      if (null != parent_directory)
+      {
+        parent_directory.mkdirs();
+      }
+
+      latencyWriter = new FileWriter(file);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
     _db.init();
 
     this.reportLatencyForEachError = Boolean.parseBoolean(getProperties().
@@ -105,6 +119,13 @@ public class DBWrapper extends DB
     _db.cleanup();
     long en=System.nanoTime();
     measure("CLEANUP", Status.OK, ist, st, en);
+
+    //closing file writer for this client thread
+    try {
+      latencyWriter.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   /**
@@ -136,7 +157,7 @@ public class DBWrapper extends DB
     long st = System.nanoTime();
     Status res=_db.readMulti(table,keys,fields,result);
     long en=System.nanoTime();
-    measure("READMULTI", res, ist, st, en);
+    measureAndLog("READMULTI", res, keys.size(), ist, st, en);
     _measurements.reportStatus("READMULTI",res);
     return res;
   }
@@ -179,6 +200,39 @@ public class DBWrapper extends DB
         (int)((endTimeNanos-startTimeNanos)/1000));
     _measurements.measureIntended(measurementName,
         (int)((endTimeNanos-intendedStartTimeNanos)/1000));
+  }
+
+  private void measureAndLog(String op, Status result, int batchSize, long intendedStartTimeNanos,
+                       long startTimeNanos, long endTimeNanos) {
+    String measurementName = op;
+    if (result != Status.OK) {
+      if (this.reportLatencyForEachError ||
+        this.latencyTrackedErrors.contains(result.getName())) {
+        measurementName = op + "-" + result.getName();
+      } else {
+        measurementName = op + "-FAILED";
+      }
+    }
+    _measurements.measure(measurementName,
+      (int)((endTimeNanos-startTimeNanos)/1000));
+    _measurements.measureIntended(measurementName,
+      (int)((endTimeNanos-intendedStartTimeNanos)/1000));
+
+    appendToFile(batchSize, startTimeNanos, endTimeNanos);
+  }
+
+  private void appendToFile(int batchSize, long startTimeNanos, long endTimeNanos)
+  {
+    //System.out.println("Appending to file latency" + Thread.currentThread().toString());
+    String str = Integer.toString((int)((endTimeNanos-startTimeNanos)/1000));
+    try {
+      latencyWriter.append(Integer.toString(batchSize))
+        .append(',')
+        .append(Integer.toString((int)((endTimeNanos-startTimeNanos)/1000)))
+        .append(System.getProperty("line.separator"));
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   /**
