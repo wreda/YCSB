@@ -1,14 +1,6 @@
 package com.yahoo.ycsb.workloads;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -67,7 +59,7 @@ public class EuroSysWorkload extends CoreWorkload {
     public static String tracefile;
     
     FileGenerator filegen;
-    
+
     @Override
     public void init(Properties p) throws WorkloadException
     {
@@ -222,7 +214,11 @@ public class EuroSysWorkload extends CoreWorkload {
         
         p.setProperty(INSERT_START_PROPERTY,statsMap.get("minkey").toString());
         p.setProperty(Client.RECORD_COUNT_PROPERTY, keyDiff.toString());
-        p.setProperty(Client.OPERATION_COUNT_PROPERTY,statsMap.get("taskcount").toString());
+
+        //Read entire trace if opcount==0
+        int opcount=Integer.parseInt(p.getProperty(Client.OPERATION_COUNT_PROPERTY,"0"));
+        if(opcount == 0)
+          p.setProperty(Client.OPERATION_COUNT_PROPERTY,statsMap.get("taskcount").toString());
     }
 }
 
