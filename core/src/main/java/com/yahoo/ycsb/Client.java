@@ -18,10 +18,7 @@
 package com.yahoo.ycsb;
 
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -56,6 +53,8 @@ class StatusThread extends Thread
   /** The interval for reporting status. */
   private long _sleeptimeNs;
 
+  private FileWriter _throughputWriter;
+
   /**
    * Creates a new StatusThread.
    *
@@ -73,6 +72,12 @@ class StatusThread extends Thread
     _label=label;
     _standardstatus=standardstatus;
     _sleeptimeNs=TimeUnit.SECONDS.toNanos(statusIntervalSeconds);
+    try
+    {
+    _throughputWriter = new FileWriter("throughput.csv");
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   /**
@@ -86,14 +91,19 @@ class StatusThread extends Thread
     long deadline = startTimeNanos + _sleeptimeNs;
     long startIntervalMs=startTimeMs;
     long lastTotalOps=0;
-
+    long lastTotalReads=0;
+    Pair<Long, Long> totals;
     boolean alldone;
 
     do
     {
       long nowMs=System.currentTimeMillis();
 
-      lastTotalOps = computeStats(startTimeMs, startIntervalMs, nowMs, lastTotalOps);
+      totals = computeStats(startTimeMs, startIntervalMs, nowMs, lastTotalOps, lastTotalReads);
+
+      lastTotalOps = totals.getFirst();
+
+      lastTotalReads = totals.getSecond();
 
       alldone = waitForClientsUntil(deadline);
 
@@ -103,7 +113,13 @@ class StatusThread extends Thread
     while (!alldone);
 
     // Print the final stats.
-    computeStats(startTimeMs, startIntervalMs, System.currentTimeMillis(), lastTotalOps);
+    computeStats(startTimeMs, startIntervalMs, System.currentTimeMillis(), lastTotalOps, lastTotalReads);
+
+    try {
+      _throughputWriter.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 
   /**
@@ -116,17 +132,19 @@ class StatusThread extends Thread
    *
    * @return The current operation count.
    */
-  private long computeStats(final long startTimeMs, long startIntervalMs, long endIntervalMs,
-      long lastTotalOps) {
+  private Pair<Long, Long> computeStats(final long startTimeMs, long startIntervalMs, long endIntervalMs,
+      long lastTotalOps, long lastTotalRdOps) {
     SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss:SSS");
 
     long totalops=0;
+    long totalreads=0;
     long todoops=0;
 
     // Calculate the total number of operations completed.
     for (ClientThread t : _clients)
     {
       totalops+=t.getOpsDone();
+      totalreads+=t.getReadsDone();
       todoops+=t.getOpsTodo();
     }
 
@@ -134,8 +152,10 @@ class StatusThread extends Thread
     long interval=endIntervalMs-startTimeMs;
     double throughput=1000.0*(((double)totalops)/(double)interval);
     double curthroughput=1000.0*(((double)(totalops-lastTotalOps))/((double)(endIntervalMs-startIntervalMs)));
+    double curthroughputrd=1000.0*(((double)(totalreads-lastTotalRdOps))/((double)(endIntervalMs-startIntervalMs)));
     long estremaining = (long) Math.ceil(todoops / throughput);
 
+    appendToFile(curthroughput, curthroughputrd);
 
     DecimalFormat d = new DecimalFormat("#.##");
     String label = _label + format.format(new Date());
@@ -145,6 +165,10 @@ class StatusThread extends Thread
 
     if (totalops != 0) {
       msg.append(d.format(curthroughput)).append(" current ops/sec; ");
+    }
+
+    if (totalreads != 0) {
+      msg.append(d.format(curthroughputrd)).append(" current reads/sec; ");
     }
     if (todoops != 0) {
         msg.append("est completion in ").append(RemainingFormatter.format(estremaining));
@@ -157,7 +181,7 @@ class StatusThread extends Thread
     if (_standardstatus) {
       System.out.println(msg);
     }
-    return totalops;
+    return new Pair<Long, Long>(totalops, totalreads);
   }
 
   /**
@@ -186,6 +210,20 @@ class StatusThread extends Thread
     }
 
     return alldone;
+  }
+
+  private void appendToFile(double opsThroughput, double readThroughput)
+  {
+    try {
+      _throughputWriter.append(Long.toString(System.currentTimeMillis()))
+        .append(',')
+        .append(Double.toString(opsThroughput))
+        .append(',')
+        .append(Double.toString(readThroughput))
+        .append(System.getProperty("line.separator"));
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 }
 
@@ -241,6 +279,8 @@ class ClientThread extends Thread
   double _targetOpsPerMs;
 
   int _opsdone;
+  //total number of read operations (useful for multigets as it counts the # of keys per each multiget request)
+  int _readsdone;
   int _threadid;
   int _threadcount;
   Object _workloadstate;
@@ -266,6 +306,7 @@ class ClientThread extends Thread
     _workload=workload;
     _opcount=opcount;
     _opsdone=0;
+    _readsdone=0;
     if(targetperthreadperms > 0){
       _targetOpsPerMs=targetperthreadperms;
       _targetOpsTickNs=(long)(1000000/_targetOpsPerMs);
@@ -280,6 +321,8 @@ class ClientThread extends Thread
   {
     return _opsdone;
   }
+
+  public int getReadsDone() { return _readsdone; }
 
   @Override
   public void run()
@@ -332,6 +375,7 @@ class ClientThread extends Thread
           }
 
           _opsdone++;
+          _readsdone = _workload.getTotalReads();
 
           throttleNanos(startTimeNanos);
         }

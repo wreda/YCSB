@@ -226,7 +226,9 @@ public class DBWrapper extends DB
     //System.out.println("Appending to file latency" + Thread.currentThread().toString());
     String str = Integer.toString((int)((endTimeNanos-startTimeNanos)/1000));
     try {
-      latencyWriter.append(Integer.toString(batchSize))
+      latencyWriter.append(Long.toString(System.currentTimeMillis()))
+        .append(',')
+        .append(Integer.toString(batchSize))
         .append(',')
         .append(Integer.toString((int)((endTimeNanos-startTimeNanos)/1000)))
         .append(System.getProperty("line.separator"));

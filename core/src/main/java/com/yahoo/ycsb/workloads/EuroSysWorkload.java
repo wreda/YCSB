@@ -143,7 +143,7 @@ public class EuroSysWorkload extends CoreWorkload {
     }
 
     @Override
-    public void doTransactionRead(DB db)
+    public int doTransactionRead(DB db)
     {
         if(worktype.compareTo("trace") == 0)
         {
@@ -172,7 +172,7 @@ public class EuroSysWorkload extends CoreWorkload {
                 }
 
                 db.readMulti(table,new HashSet<String>(task),fields,new Vector<HashMap<String,ByteIterator>>());
-    
+                return task.size();
             }
             catch (UnsupportedOperationException e)
             {
@@ -181,6 +181,8 @@ public class EuroSysWorkload extends CoreWorkload {
         }
         else
             super.doTransactionRead(db);
+
+      return 1;
     }
     
     /**

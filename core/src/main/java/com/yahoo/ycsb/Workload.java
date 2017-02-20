@@ -109,4 +109,6 @@ public abstract class Workload
         if (stopRequested.get() == true) return true;
         else return false;
       }
+
+      public abstract int getTotalReads();
 }

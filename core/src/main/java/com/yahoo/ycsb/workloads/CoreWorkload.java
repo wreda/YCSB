@@ -84,6 +84,8 @@ public class CoreWorkload extends Workload {
 
   int fieldcount;
 
+  int totalreads;
+
   protected List<String> fieldnames;
 
   /**
@@ -603,7 +605,7 @@ public class CoreWorkload extends Workload {
     String op = operationchooser.nextString();
 
     if (op.compareTo("READ") == 0) {
-      doTransactionRead(db);
+      totalreads += doTransactionRead(db);
     } else if (op.compareTo("UPDATE") == 0) {
       doTransactionUpdate(db);
     } else if (op.compareTo("INSERT") == 0) {
@@ -657,7 +659,7 @@ public class CoreWorkload extends Workload {
     return keynum;
   }
 
-  public void doTransactionRead(DB db) {
+  public int doTransactionRead(DB db) {
     // choose a random key
     int keynum = nextKeynum();
 
@@ -682,6 +684,7 @@ public class CoreWorkload extends Workload {
     if (dataintegrity) {
       verifyRow(keyname, cells);
     }
+    return 1;
   }
 
   public void doTransactionReadModifyWrite(DB db) {
@@ -784,5 +787,10 @@ public class CoreWorkload extends Workload {
     } finally {
       transactioninsertkeysequence.acknowledge(keynum);
     }
+  }
+
+  public int getTotalReads()
+  {
+    return totalreads;
   }
 }
