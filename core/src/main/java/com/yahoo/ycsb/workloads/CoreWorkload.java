@@ -236,6 +236,33 @@ public class CoreWorkload extends Workload {
   public static final String REQUEST_DISTRIBUTION_PROPERTY_DEFAULT = "uniform";
 
   /**
+   * The name of the property for the the distribution of requests across the keyspace. Options are
+   * "uniform", "zipfian" and "latest"
+   */
+  public static final String BATCHSIZE_DISTRIBUTION_PROPERTY = "batchsizedistribution";
+
+  /**
+   * The default distribution of requests across the keyspace
+   */
+  public static final String BATCHSIZE_DISTRIBUTION_PROPERTY_DEFAULT = "constant";
+
+  /**
+   * The name of the property for the length of a field in bytes.
+   */
+  public static final String BATCHSIZE_PROPERTY = "batchsize";
+
+  /**
+   * The default maximum length of a field in bytes.
+   */
+  public static final String BATCHSIZE_PROPERTY_DEFAULT = "1";
+
+  /**
+   * Generator object that produces batch sizes.  The value of this depends on the properties that
+   * start with "BATCHSIZE_".
+   */
+  IntegerGenerator batchsizegenerator;
+
+  /**
    * The name of the property for the max scan length (number of records)
    */
   public static final String MAX_SCAN_LENGTH_PROPERTY = "maxscanlength";
@@ -349,6 +376,23 @@ public class CoreWorkload extends Workload {
     return fieldlengthgenerator;
   }
 
+  protected static IntegerGenerator getBatchSizeGenerator(Properties p) throws WorkloadException {
+    IntegerGenerator batchsizegenerator;
+    String batchsizedistribution = p.getProperty(
+      BATCHSIZE_DISTRIBUTION_PROPERTY, BATCHSIZE_DISTRIBUTION_PROPERTY_DEFAULT);
+    int batchsize =
+      Integer.parseInt(p.getProperty(BATCHSIZE_PROPERTY, BATCHSIZE_PROPERTY_DEFAULT));
+    if (batchsizedistribution.compareTo("constant") == 0) {
+      batchsizegenerator = new ConstantIntegerGenerator(batchsize);
+    } else if (batchsizedistribution.compareTo("lognormal") == 0) {
+      batchsizegenerator = new LognormalGenerator(batchsize, 0.27);
+    } else {
+      throw new WorkloadException(
+        "Unknown field length distribution \"" + batchsizedistribution + "\"");
+    }
+    return batchsizegenerator;
+  }
+
   /**
    * Initialize the scenario.
    * Called once, in the main client thread, before any operations are started.
@@ -363,6 +407,7 @@ public class CoreWorkload extends Workload {
       fieldnames.add("field" + i);
     }
     fieldlengthgenerator = CoreWorkload.getFieldLengthGenerator(p);
+    batchsizegenerator = CoreWorkload.getBatchSizeGenerator(p);
 
     double readproportion = Double.parseDouble(
         p.getProperty(READ_PROPORTION_PROPERTY, READ_PROPORTION_PROPERTY_DEFAULT));
@@ -660,31 +705,66 @@ public class CoreWorkload extends Workload {
   }
 
   public int doTransactionRead(DB db) {
-    // choose a random key
-    int keynum = nextKeynum();
 
-    String keyname = buildKeyName(keynum);
+    int batchsize = batchsizegenerator.nextInt();
 
-    HashSet<String> fields = null;
+    //perform multiget query
+    if(batchsize>1)
+    {
+      List<String> task = new ArrayList<String>();
 
-    if (!readallfields) {
-      // read a random field
-      String fieldname = fieldnames.get(Integer.parseInt(fieldchooser.nextString()));
+      for(int i=0; i<batchsize; i++)
+      {
 
-      fields = new HashSet<String>();
-      fields.add(fieldname);
-    } else if (dataintegrity) {
-      // pass the full field list if dataintegrity is on for verification
-      fields = new HashSet<String>(fieldnames);
+        int keynum = nextKeynum();
+
+        String keyname = buildKeyName(keynum);
+
+        task.add(keyname);
+      }
+
+      HashSet<String> fields = null;
+
+      if (!readallfields) {
+        // read a random field
+        String fieldname = fieldnames.get(Integer.parseInt(fieldchooser.nextString()));
+
+        fields = new HashSet<String>();
+        fields.add(fieldname);
+      } else if (dataintegrity) {
+        // pass the full field list if dataintegrity is on for verification
+        fields = new HashSet<String>(fieldnames);
+      }
+      db.readMulti(table,new HashSet<String>(task),fields,new Vector<HashMap<String,ByteIterator>>());
+      return task.size();
     }
+    else {
+      // choose a random key
+      int keynum = nextKeynum();
 
-    HashMap<String, ByteIterator> cells = new HashMap<String, ByteIterator>();
-    db.read(table, keyname, fields, cells);
+      String keyname = buildKeyName(keynum);
 
-    if (dataintegrity) {
-      verifyRow(keyname, cells);
+      HashSet<String> fields = null;
+
+      if (!readallfields) {
+        // read a random field
+        String fieldname = fieldnames.get(Integer.parseInt(fieldchooser.nextString()));
+
+        fields = new HashSet<String>();
+        fields.add(fieldname);
+      } else if (dataintegrity) {
+        // pass the full field list if dataintegrity is on for verification
+        fields = new HashSet<String>(fieldnames);
+      }
+
+      HashMap<String, ByteIterator> cells = new HashMap<String, ByteIterator>();
+      db.read(table, keyname, fields, cells);
+
+      if (dataintegrity) {
+        verifyRow(keyname, cells);
+      }
+      return 1;
     }
-    return 1;
   }
 
   public void doTransactionReadModifyWrite(DB db) {
