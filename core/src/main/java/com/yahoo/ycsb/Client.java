@@ -65,13 +65,13 @@ class StatusThread extends Thread
    * @param statusIntervalSeconds The number of seconds between status updates.
    */
   public StatusThread(CountDownLatch completeLatch, List<ClientThread> clients,
-      String label, boolean standardstatus, int statusIntervalSeconds)
+      String label, boolean standardstatus, float statusIntervalSeconds)
   {
     _completeLatch=completeLatch;
     _clients=clients;
     _label=label;
     _standardstatus=standardstatus;
-    _sleeptimeNs=TimeUnit.SECONDS.toNanos(statusIntervalSeconds);
+    _sleeptimeNs= (long)(statusIntervalSeconds * 1000000000);
     try
     {
     _throughputWriter = new FileWriter("throughput.csv");
@@ -368,14 +368,14 @@ class ClientThread extends Thread
 
         while (((_opcount == 0) || (_opsdone < _opcount)) && !_workload.isStopRequested())
         {
-
-          if (!_workload.doTransaction(_db,_workloadstate))
+          _readsdone += _workload.doTransaction(_db,_workloadstate);
+          if (_readsdone<0)
           {
             break;
           }
 
           _opsdone++;
-          _readsdone = _workload.getTotalReads();
+          //_readsdone = _workload.getTotalReads();
 
           throttleNanos(startTimeNanos);
         }
@@ -917,7 +917,7 @@ public class Client
       {
         standardstatus=true;
       }
-      int statusIntervalSeconds = Integer.parseInt(props.getProperty("status.interval","10"));
+      float statusIntervalSeconds = Float.parseFloat(props.getProperty("status.interval","10"));
       statusthread=new StatusThread(completeLatch,clients,label,standardstatus,statusIntervalSeconds);
       statusthread.start();
     }

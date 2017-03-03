@@ -646,22 +646,26 @@ public class CoreWorkload extends Workload {
    * for each other, and it will be difficult to reach the target throughput. Ideally, this function would
    * have no side effects other than DB operations.
    */
-  public boolean doTransaction(DB db, Object threadstate) {
+  public int doTransaction(DB db, Object threadstate) {
     String op = operationchooser.nextString();
-
+    int ops;
     if (op.compareTo("READ") == 0) {
-      totalreads += doTransactionRead(db);
+      ops = doTransactionRead(db);
     } else if (op.compareTo("UPDATE") == 0) {
       doTransactionUpdate(db);
+      ops = 1;
     } else if (op.compareTo("INSERT") == 0) {
       doTransactionInsert(db);
+      ops = 1;
     } else if (op.compareTo("SCAN") == 0) {
       doTransactionScan(db);
+      ops = 1;
     } else {
       doTransactionReadModifyWrite(db);
+      ops = 1;
     }
 
-    return true;
+    return ops;
   }
 
   /**
