@@ -22,6 +22,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.yahoo.ycsb.measurements.Measurements;
 
@@ -37,6 +38,8 @@ public class DBWrapper extends DB
 
   private boolean reportLatencyForEachError = false;
   private HashSet<String> latencyTrackedErrors = new HashSet<String>();
+
+  private AtomicLong outstandingOpsTracker;
 
   private static final String REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY =
       "reportlatencyforeacherror";
@@ -73,6 +76,9 @@ public class DBWrapper extends DB
    */
   public void init() throws DBException
   {
+    //initialize outstanding ops tracker
+    outstandingOpsTracker = new AtomicLong();
+
     //create temp log file for each thread using this class
     try {
       File file = new File("temp/latencies"+Thread.currentThread());
@@ -155,8 +161,10 @@ public class DBWrapper extends DB
                        Vector<HashMap<String, ByteIterator>> result) {
     long ist=_measurements.getIntendedtartTimeNs();
     long st = System.nanoTime();
+    outstandingOpsTracker.addAndGet(keys.size());
     Status res=_db.readMulti(table,keys,fields,result);
     long en=System.nanoTime();
+    outstandingOpsTracker.addAndGet(-keys.size());
     measureAndLog("READMULTI", res, keys.size(), ist, st, en);
     _measurements.reportStatus("READMULTI",res);
     return res;
@@ -235,6 +243,11 @@ public class DBWrapper extends DB
     } catch (IOException e) {
       e.printStackTrace();
     }
+  }
+
+  public AtomicLong getOutstandingOps()
+  {
+    return outstandingOpsTracker;
   }
 
   /**

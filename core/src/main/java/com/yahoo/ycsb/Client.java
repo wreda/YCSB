@@ -139,6 +139,7 @@ class StatusThread extends Thread
     long totalops=0;
     long totalreads=0;
     long todoops=0;
+    long outstandingops=0;
 
     // Calculate the total number of operations completed.
     for (ClientThread t : _clients)
@@ -146,6 +147,7 @@ class StatusThread extends Thread
       totalops+=t.getOpsDone();
       totalreads+=t.getReadsDone();
       todoops+=t.getOpsTodo();
+      outstandingops+=t.getOutstandingOps();
     }
 
 
@@ -155,7 +157,7 @@ class StatusThread extends Thread
     double curthroughputrd=1000.0*(((double)(totalreads-lastTotalRdOps))/((double)(endIntervalMs-startIntervalMs)));
     long estremaining = (long) Math.ceil(todoops / throughput);
 
-    appendToFile(curthroughput, curthroughputrd);
+    appendToFile(curthroughput, curthroughputrd, (int)outstandingops);
 
     DecimalFormat d = new DecimalFormat("#.##");
     String label = _label + format.format(new Date());
@@ -170,6 +172,11 @@ class StatusThread extends Thread
     if (totalreads != 0) {
       msg.append(d.format(curthroughputrd)).append(" current reads/sec; ");
     }
+
+    if (outstandingops != 0) {
+      msg.append(d.format(outstandingops)).append(" outstanding reads; ");
+    }
+
     if (todoops != 0) {
         msg.append("est completion in ").append(RemainingFormatter.format(estremaining));
     }
@@ -212,7 +219,7 @@ class StatusThread extends Thread
     return alldone;
   }
 
-  private void appendToFile(double opsThroughput, double readThroughput)
+  private void appendToFile(double opsThroughput, double readThroughput, int outstandingOps)
   {
     try {
       _throughputWriter.append(Long.toString(System.currentTimeMillis()))
@@ -220,6 +227,8 @@ class StatusThread extends Thread
         .append(Double.toString(opsThroughput))
         .append(',')
         .append(Double.toString(readThroughput))
+        .append(',')
+        .append(Double.toString(outstandingOps))
         .append(System.getProperty("line.separator"));
     } catch (IOException e) {
       e.printStackTrace();
@@ -448,6 +457,11 @@ class ClientThread extends Thread
   {
     int todo = _opcount - _opsdone;
     return todo < 0 ? 0 : todo;
+  }
+
+  public int getOutstandingOps()
+  {
+    return (int) ((DBWrapper)_db).getOutstandingOps().get();
   }
 }
 
