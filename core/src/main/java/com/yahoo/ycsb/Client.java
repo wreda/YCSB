@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
 import com.yahoo.ycsb.measurements.Measurements;
@@ -461,7 +462,8 @@ class ClientThread extends Thread
 
   public int getOutstandingOps()
   {
-    return (int) ((DBWrapper)_db).getOutstandingOps().get();
+    AtomicLong oo = ((DBWrapper)_db).getOutstandingOps();
+    return (int) oo.get();
   }
 }
 

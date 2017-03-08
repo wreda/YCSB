@@ -39,7 +39,7 @@ public class DBWrapper extends DB
   private boolean reportLatencyForEachError = false;
   private HashSet<String> latencyTrackedErrors = new HashSet<String>();
 
-  private AtomicLong outstandingOpsTracker;
+  private AtomicLong outstandingOpsTracker = new AtomicLong();
 
   private static final String REPORT_LATENCY_FOR_EACH_ERROR_PROPERTY =
       "reportlatencyforeacherror";
