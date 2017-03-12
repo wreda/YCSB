@@ -720,7 +720,11 @@ public class CoreWorkload extends Workload {
       for(int i=0; i<batchsize; i++)
       {
 
-        int keynum = nextKeynum();
+        long keynum = nextKeynum();
+
+        keynum = Utils.hash(keynum);
+
+        keynum = keynum%100000;
 
         String keyname = buildKeyName(keynum);
 

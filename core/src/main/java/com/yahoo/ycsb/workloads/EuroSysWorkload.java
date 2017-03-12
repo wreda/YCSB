@@ -180,7 +180,7 @@ public class EuroSysWorkload extends CoreWorkload {
             }
         }
         else
-            super.doTransactionRead(db);
+            return super.doTransactionRead(db);
 
       return 1;
     }
