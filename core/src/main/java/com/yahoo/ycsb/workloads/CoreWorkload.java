@@ -380,12 +380,12 @@ public class CoreWorkload extends Workload {
     IntegerGenerator batchsizegenerator;
     String batchsizedistribution = p.getProperty(
       BATCHSIZE_DISTRIBUTION_PROPERTY, BATCHSIZE_DISTRIBUTION_PROPERTY_DEFAULT);
-    int batchsize =
-      Integer.parseInt(p.getProperty(BATCHSIZE_PROPERTY, BATCHSIZE_PROPERTY_DEFAULT));
+    float batchsize =
+      Float.parseFloat(p.getProperty(BATCHSIZE_PROPERTY, BATCHSIZE_PROPERTY_DEFAULT));
     if (batchsizedistribution.compareTo("constant") == 0) {
-      batchsizegenerator = new ConstantIntegerGenerator(batchsize);
+      batchsizegenerator = new ConstantIntegerGenerator((int)batchsize);
     } else if (batchsizedistribution.compareTo("lognormal") == 0) {
-      batchsizegenerator = new LognormalGenerator(batchsize, 0.27);
+      batchsizegenerator = new LognormalGenerator(batchsize, 1.25);
     } else {
       throw new WorkloadException(
         "Unknown field length distribution \"" + batchsizedistribution + "\"");
@@ -710,11 +710,11 @@ public class CoreWorkload extends Workload {
 
   public int doTransactionRead(DB db) {
 
-    int batchsize = batchsizegenerator.nextInt();
-
+    int batchsize = Math.max(batchsizegenerator.nextInt(),1);
     //perform multiget query
-    if(batchsize>1)
+    if(!(batchsizegenerator instanceof ConstantIntegerGenerator && batchsize == 1))
     {
+      //System.out.println("Batch Size is: "+Integer.toString(batchsize));
       List<String> task = new ArrayList<String>();
 
       for(int i=0; i<batchsize; i++)
