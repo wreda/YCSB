@@ -386,7 +386,10 @@ public class CoreWorkload extends Workload {
       batchsizegenerator = new ConstantIntegerGenerator((int)batchsize);
     } else if (batchsizedistribution.compareTo("lognormal") == 0) {
       batchsizegenerator = new LognormalGenerator(batchsize, 1.25);
-    } else {
+    } else if (batchsizedistribution.compareTo("bimodal") == 0) {
+      batchsizegenerator = new BiModalGenerator(1,100,0.6f);
+    }
+    else {
       throw new WorkloadException(
         "Unknown field length distribution \"" + batchsizedistribution + "\"");
     }
@@ -509,11 +512,14 @@ public class CoreWorkload extends Workload {
       keychooser = new SkewedLatestGenerator(transactioninsertkeysequence);
     } else if (requestdistrib.equals("hotspot")) {
       double hotsetfraction =
-          Double.parseDouble(p.getProperty(HOTSPOT_DATA_FRACTION, HOTSPOT_DATA_FRACTION_DEFAULT));
+        Double.parseDouble(p.getProperty(HOTSPOT_DATA_FRACTION, HOTSPOT_DATA_FRACTION_DEFAULT));
       double hotopnfraction =
-          Double.parseDouble(p.getProperty(HOTSPOT_OPN_FRACTION, HOTSPOT_OPN_FRACTION_DEFAULT));
+        Double.parseDouble(p.getProperty(HOTSPOT_OPN_FRACTION, HOTSPOT_OPN_FRACTION_DEFAULT));
       keychooser = new HotspotIntegerGenerator(0, recordcount - 1, hotsetfraction, hotopnfraction);
-    } else {
+    }
+      else if (requestdistrib.equals("trace")) {
+        keychooser = null;
+      } else {
       throw new WorkloadException("Unknown request distribution \"" + requestdistrib + "\"");
     }
 
