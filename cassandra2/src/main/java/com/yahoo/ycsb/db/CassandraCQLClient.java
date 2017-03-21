@@ -146,8 +146,9 @@ public class CassandraCQLClient extends DB {
         String lb = getProperties().getProperty(LOAD_BALANCER_PROPERY, LOAD_BALANCER_PROPERY_DEFAULT);
         LoadBalancingPolicy lbp;
 
-        if(lb == "roundrobin")
+        if(lb == "roundrobin") {
           lbp = new RoundRobinPolicy();
+        }
         else if (lb == "whitelist")
         {
           //FIXME add a seperate configuration param for whitelisting; for now use roundrobin as default policy
