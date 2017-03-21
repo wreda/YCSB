@@ -28,6 +28,9 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SimpleStatement;
 import com.datastax.driver.core.Statement;
+import com.datastax.driver.core.policies.LoadBalancingPolicy;
+import com.datastax.driver.core.policies.RoundRobinPolicy;
+import com.datastax.driver.core.policies.WhiteListPolicy;
 import com.datastax.driver.core.querybuilder.Insert;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
@@ -37,11 +40,9 @@ import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
 import com.yahoo.ycsb.Status;
 
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.Vector;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -68,6 +69,9 @@ public class CassandraCQLClient extends DB {
   public static final String HOSTS_PROPERTY = "hosts";
   public static final String PORT_PROPERTY = "port";
   public static final String PORT_PROPERTY_DEFAULT = "9042";
+
+  public static final String LOAD_BALANCER_PROPERY = "loadbalancer";
+  public static final String LOAD_BALANCER_PROPERY_DEFAULT = "roundrobin";
 
   public static final String READ_CONSISTENCY_LEVEL_PROPERTY =
       "cassandra.readconsistencylevel";
@@ -139,12 +143,34 @@ public class CassandraCQLClient extends DB {
             getProperties().getProperty(WRITE_CONSISTENCY_LEVEL_PROPERTY,
                 WRITE_CONSISTENCY_LEVEL_PROPERTY_DEFAULT));
 
+        String lb = getProperties().getProperty(LOAD_BALANCER_PROPERY, LOAD_BALANCER_PROPERY_DEFAULT);
+        LoadBalancingPolicy lbp;
+
+        if(lb == "roundrobin")
+          lbp = new RoundRobinPolicy();
+        else if (lb == "whitelist")
+        {
+          //FIXME add a seperate configuration param for whitelisting; for now use roundrobin as default policy
+          List<InetSocketAddress> whiteListedIPs = new ArrayList<InetSocketAddress>();
+          for (String h: hosts)
+          {
+            whiteListedIPs.add(new InetSocketAddress(h, Integer.parseInt(port)));
+          }
+          lbp = new WhiteListPolicy(new RoundRobinPolicy(), whiteListedIPs);
+        }
+        else {
+          throw new DBException(String.format(
+            "Unknown load balancing policy \"" + lb + "\"",
+            HOSTS_PROPERTY));
+        }
+
         if ((username != null) && !username.isEmpty()) {
           cluster = Cluster.builder().withCredentials(username, password)
-              .withPort(Integer.valueOf(port)).addContactPoints(hosts).build();
+              .withPort(Integer.valueOf(port)).addContactPoints(hosts)
+              .withLoadBalancingPolicy(lbp).build();
         } else {
           cluster = Cluster.builder().withPort(Integer.valueOf(port))
-              .addContactPoints(hosts).build();
+              .addContactPoints(hosts).withLoadBalancingPolicy(lbp).build();
         }
 
         String maxConnections = getProperties().getProperty(
